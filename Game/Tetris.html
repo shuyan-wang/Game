@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>俄罗斯方块</title>
+		<style>
+		/*myCanvas是画布，myCanvasBorder是画布的上边框*/
+		#myCanvas,#myCanvasBorder{
+			position:absolute;
+			top:10%;
+			left:20%;
+		}
+		/*Occlusion用于遮挡画布的第一行*/
+		#Occlusion{
+			background:white;
+			top:10%;
+			left:20%;
+			width:302px;
+			height:30px;
+			position:absolute;
+			z-index:2;
+		}
+		</style>
+	</head>
+	<body>
+		<canvas id="myCanvas" width="300" height="630" style="border:1px solid #000000;"></canvas>
+		<canvas id="myCanvasBorder" width="300" height="29" style="border:1px solid #000000;"></canvas>
+		<div id="Occlusion"></div>
+		<button id="startButton" onclick="suspendGame()">暂停</button>
+		<p><scan>得分：</scan><scan id="score">0</scan></p>
+	</body>
+	<script>
+	var myCanvas=document.getElementById("myCanvas");
+	var context=myCanvas.getContext("2d");
+	var blockX=150;
+	var blockY=30;
+	var blockNumber=randomNumber(0,6);
+	var blockState=randomNumber(1,4);
+	var BLOCKSIZE=30;
+	var INTERVAL=600;
+	var INTERVAL_FAST=10;
+	var imageData=context.getImageData(0,0,300,630);
+	var animation=setInterval(fall,INTERVAL);
+	var score=0;
+	var color=new Array();
+	for(var i=0;i<21;i++){
+		color[i]=new Array();
+	}
+	
+	//记录方块坐标的数组，以方块的旋转中心为原点
+	var ARRAY_O=[-30,-30,0,-30,0,0,-30,0,-30,-30,0,-30,0,0,-30,0,-30,-30,0,-30,0,0,-30,0,-30,-30,0,-30,0,0,-30,0];
+	var ARRAY_I=[-60,-60,-60,-30,-60,0,-60,30,-60,-60,-30,-60,0,-60,30,-60,30,-60,30,-30,30,0,30,30,-60,30,-30,30,0,30,30,30];
+	var ARRAY_S=[-60,0,-30,0,-30,-30,0,-30,-30,-60,-30,-30,0,-30,0,0,-30,0,0,0,0,-30,30,-30,-30,-30,-30,0,0,0,0,30];
+	var ARRAY_Z=[-60,-30,-30,-30,-30,0,0,0,0,-60,0,-30,-30,-30,-30,0,-30,-30,0,-30,0,0,30,0,0,-30,0,0,-30,0,-30,30];
+	var ARRAY_L=[-60,0,-30,0,0,0,0,-30,-30,-60,-30,-30,-30,0,0,0,-30,0,-30,-30,0,-30,30,-30,-30,-30,0,-30,0,0,0,30];
+	var ARRAY_J=[-30,-30,-30,0,0,0,30,0,0,-30,-30,-30,-30,0,-30,30,-60,-30,-30,-30,0,-30,0,0,-30,0,0,0,0,-30,0,-60];
+	var ARRAY_T=[-60,0,-30,0,0,0,-30,-30,-30,-60,-30,-30,-30,0,0,-30,-30,-30,0,-30,30,-30,0,0,0,-30,0,0,0,30,-30,0];
+	var ARRAY=[ARRAY_O,ARRAY_I,ARRAY_S,ARRAY_Z,ARRAY_L,ARRAY_J,ARRAY_T];
+	var ARRAY_COLOR=["red","yellow","brown","pink","purple","orange","green"];
+	//添加全局键盘事件：上方向键顺时针旋转，左右方向键控制左右移动，下方向键直接落下。
+	document.onkeydown=function(event){
+		if(event.keyCode==38){
+			if(blockState!=4)
+			blockState++;
+			else
+			blockState=1;
+		}
+		if(event.keyCode==37)
+		blockX-=30;
+		if(event.keyCode==39)
+		blockX+=30;
+		if(event.keyCode==40){
+			clearInterval(animation);
+			animation=setInterval(fall,INTERVAL_FAST);
+		}
+	}
+	
+	//视图层
+	function draw(x,y,number,state){
+		context.beginPath();
+		context.fillStyle=ARRAY_COLOR[number];
+		for(var i=0;i<8;i+=2){
+			if(state==1){
+				context.fillRect(x+ARRAY[number][i],y+ARRAY[number][i+1],BLOCKSIZE,BLOCKSIZE);
+				context.strokeRect(x+ARRAY[number][i],y+ARRAY[number][i+1],BLOCKSIZE,BLOCKSIZE);
+			}
+			if(state==2){
+				context.fillRect(x+ARRAY[number][i+8],y+ARRAY[number][i+9],BLOCKSIZE,BLOCKSIZE);
+				context.strokeRect(x+ARRAY[number][i+8],y+ARRAY[number][i+9],BLOCKSIZE,BLOCKSIZE);
+			}
+			if(state==3){
+				context.fillRect(x+ARRAY[number][i+16],y+ARRAY[number][i+17],BLOCKSIZE,BLOCKSIZE);
+				context.strokeRect(x+ARRAY[number][i+16],y+ARRAY[number][i+17],BLOCKSIZE,BLOCKSIZE);
+			}
+			if(state==4){
+				context.fillRect(x+ARRAY[number][i+24],y+ARRAY[number][i+25],BLOCKSIZE,BLOCKSIZE);
+				context.strokeRect(x+ARRAY[number][i+24],y+ARRAY[number][i+25],BLOCKSIZE,BLOCKSIZE);
+			}
+		}
+	}
+	
+	//下落：方块下落，并判断是否停止。
+	//方块下落：清空画布，并把以落下的方块数据画上，同时画出下一时刻的方块。
+	function fall(){
+		context.fillStyle="red";
+		context.clearRect(0,0,300,600);
+		context.putImageData(imageData,0,0);
+		draw(blockX,blockY,blockNumber,blockState);
+		blockY+=30;
+		//当方块碰到其他方块或到达画布底部时，停止运动。
+		if(blockNumber==0&&(stopBlock(blockX,blockY)||stopBlock(blockX-30,blockY)))
+			reFall();
+		if(blockNumber==1){
+			if(blockState==1&&stopBlock(blockX-60,blockY+30))
+				reFall();
+			if(blockState==2&&(stopBlock(blockX-60,blockY-60)||stopBlock(blockX-30,blockY-60)||stopBlock(blockX,blockY-60)||stopBlock(blockX+30,blockY-60)))
+				reFall();
+			if(blockState==3&&stopBlock(blockX+30,blockY+30))
+				reFall();
+			if(blockState==4&&(stopBlock(blockX-60,blockY+30)||stopBlock(blockX-30,blockY+30)||stopBlock(blockX,blockY+30)||stopBlock(blockX+30,blockY+30)))
+				reFall();
+		}
+		if(blockNumber==2){
+			if(blockState==1&&(stopBlock(blockX-60,blockY)||stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY-30)))
+				reFall();
+			if(blockState==2&&(stopBlock(blockX-30,blockY-30)||stopBlock(blockX,blockY)))
+				reFall();
+			if(blockState==3&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)||stopBlock(blockX+30,blockY-30)))
+				reFall();
+			if(blockState==4&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY+30)))
+				reFall();
+		}
+		if(blockNumber==3){
+			if(blockState==1&&(stopBlock(blockX-60,blockY-30)||stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)))
+				reFall();
+			if(blockState==2&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY-30)))
+				reFall();
+			if(blockState==3&&(stopBlock(blockX-30,blockY-30)||stopBlock(blockX,blockY)||stopBlock(blockX+30,blockY)))
+				reFall();
+			if(blockState==4&&(stopBlock(blockX-30,blockY+30)||stopBlock(blockX,blockY)))
+				reFall();
+		}
+		if(blockNumber==4){
+			if(blockState==1&&(stopBlock(blockX-60,blockY)||stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)))
+				reFall();
+			if(blockState==2&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)))
+				reFall();
+			if(blockState==3&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY-30)||stopBlock(blockX+30,blockY-30)))
+				reFall();
+			if(blockState==4&&(stopBlock(blockX-30,blockY-30)||stopBlock(blockX,blockY+30)))
+				reFall();
+		}
+		if(blockNumber==5){
+			if(blockState==1&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)||stopBlock(blockX+30,blockY)))
+				reFall();
+			if(blockState==2&&(stopBlock(blockX-30,blockY+30)||stopBlock(blockX,blockY-30)))
+				reFall();
+			if(blockState==3&&(stopBlock(blockX-60,blockY-30)||stopBlock(blockX-30,blockY-30)||stopBlock(blockX,blockY)))
+				reFall();
+			if(blockState==4&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)))
+				reFall();
+		}
+		if(blockNumber==6){
+			if(blockState==1&&(stopBlock(blockX-60,blockY)||stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY)))
+				reFall();
+			if(blockState==2&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY-30)))
+				reFall();
+			if(blockState==3&&(stopBlock(blockX-30,blockY-30)||stopBlock(blockX,blockY)||stopBlock(blockX+30,blockY-30)))
+				reFall();
+			if(blockState==4&&(stopBlock(blockX-30,blockY)||stopBlock(blockX,blockY+30)))
+				reFall();
+		}
+	}
+	
+	//清除一行：判断是否有一行被填满，若有则消去这一行并加分；
+	//然后判断是否有方块触碰到上边界，若有则游戏结束，若没有则重置坐标，并随机生成下一个方块继续下落。
+	function reFall(){
+		clearInterval(animation);
+		//获取当前状态的图像信息，用于判断是否有一行被填满，并在下次动画时作为背景。
+		imageData=context.getImageData(0,0,300,630);
+		eliminate(imageData.data);
+		//判断是否触碰上边界
+		if(color[0][0]||color[0][1]||color[0][2]||color[0][3]||color[0][4]||color[0][5]||color[0][6]||color[0][7]||color[0][8]||color[0][9]){
+			alert("游戏结束");
+		}
+		else{
+			blockX=150;
+			blockY=30;
+			blockNumber=randomNumber(0,6);
+			blockState=randomNumber(1,4);
+			animation=setInterval(fall,INTERVAL);
+		}
+	}
+	
+	//生成一个min至max区间的随机整数
+	function randomNumber(min,max){
+		var number=min+Math.floor(Math.random()*(max-min));
+		return number;
+	}
+	
+	//判断是否停止方块运动：当下方有方块或达到容器底部时，返回true，否则返回false。
+	function stopBlock(x,y){
+		return context.getImageData(x,y,1,1).data[0]!=0||y==630;
+	}
+	
+	//消除一行的函数
+	function eliminate(data){
+		//首先将imageData转换为能表现每个格状态的二维数组(color)，0代表没有方块，1代表有方块。
+		var k=0;
+		for(var i=0;i<21;i++){
+			k=36000*i;
+			for(var j=0;j<10;j++){
+				if(data[k]!=0)
+				color[i][j]=1;
+				else
+				color[i][j]=0;
+				k+=120;
+			}
+		}
+		
+		//判断每一行是否填满方块，当有一行被填满时，消除这一行并将上面方块下落，同时加分。
+		var degree=0;
+		for(var i=1;i<21;i++){
+			if(color[i][0]&&color[i][1]&&color[i][2]&&color[i][3]&&color[i][4]&&color[i][5]&&color[i][6]&&color[i][7]&&color[i][8]&&color[i][9]){
+				var imageDataUp=context.getImageData(0,0,300,i*30);
+				context.clearRect(0,i*30,300,30);
+				context.putImageData(imageDataUp,0,30);
+				degree++;
+				
+				//清除多余的横线(当消除的一行上下位置都是空白时，会出现多余的横线)
+				for(var j=0;j<10;j++){
+					if(i<20&&color[i-1][j]==0&&color[i+1][j]==0)
+					context.clearRect(j*30+1,(i+1)*30-1,28,2);
+				}
+			}
+		}
+		//计分：一次消除一行10分，两行30分，三行60分，四行100分。
+		if(degree==1)
+		score+=10;
+		if(degree==2)
+		score+=30;
+		if(degree==3)
+		score+=60;
+		if(degree==4)
+		score+=100;
+		document.getElementById("score").innerHTML=score;
+		imageData=context.getImageData(0,0,300,630);
+	}
+	
+	//暂停和继续按钮
+	function suspendGame(){
+		clearInterval(animation);
+		var element=document.getElementById("startButton");
+		element.innerHTML="继续";
+		element.removeEventListener("click",suspendGame,false);
+		element.addEventListener("click",continueGame,false);
+	}
+	function continueGame(){
+		animation=setInterval(fall,INTERVAL);
+		var element=document.getElementById("startButton");
+		element.innerHTML="暂停";
+		element.removeEventListener("click",continueGame,false);
+		element.addEventListener("click",suspendGame,false);
+	}
+	</script>
+</html>
