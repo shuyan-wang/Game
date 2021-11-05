@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>象棋</title>
+		<style>
+			/*边框和河道*/
+			.div0{
+				position:absolute;
+				top:61px;
+				left:391px;
+				z-index:1; 
+				width:734px;
+				height:824px;
+				border:3px solid black;
+				border-radius:10px;
+			}
+			.River{
+				position:absolute;
+				top:368px;
+				left:8px;
+				width:718px;
+				height:88px;
+				font-size:50px;
+				font-family:Kaiti;
+				text-align:center;
+				line-height:89px;
+				background-color:white;
+			}
+			/*棋盘线条：包含横线、竖线和皇宫内斜线*/
+			.div1{
+				position:absolute;
+				top:70px;
+				left:400px;
+				z-index:0; 
+				width:900px;
+				height:860px;
+			}
+			/*竖线*/
+			.VerticalLine{
+				position:absolute;
+				width:1px;
+				height:811px;
+				background-color:black;
+			}
+			/*横线*/
+			.HorizontalLine{
+				position:absolute;
+				width:721px;
+				height:1px;
+				background-color:black;
+			}
+			/*斜线*/
+			.DiagonalLine{
+				position:absolute;
+				top:90px;
+				left:233px;
+				width:255px;
+				height:1px;
+				background-color:black;
+			}
+			#DiagonalLine1,#DiagonalLine3{
+				transform:rotate(45deg);
+			}
+			#DiagonalLine2,#DiagonalLine4{
+				transform:rotate(135deg);
+			}
+			#DiagonalLine3,#DiagonalLine4{
+				top:720px;
+			}
+			/*棋盘准星：共14个准星位置，每个准星由四个短横线和四个短竖线组成*/
+			.div2{
+				position:absolute;
+				top:70px;
+				left:355px;
+				z-index:-1; 
+				width:900px;
+				height:860px;
+			}
+			.Sight{
+				position:absolute;
+				width:90px;
+				height:90px;
+			}
+			.VerticalShortLine{
+				position:absolute;
+				width:1px;
+				height:21px;
+				background-color:black;
+			}
+			#VerticalShortLine1{
+				top:20px;
+				left:40px;
+			}
+			#VerticalShortLine2{
+				top:20px;
+				left:50px;
+			}
+			#VerticalShortLine3{
+				top:50px;
+				left:40px;
+			}
+			#VerticalShortLine4{
+				top:50px;
+				left:50px;
+			}
+			.HorizontalShortLine{
+				position:absolute;
+				width:20px;
+				height:1px;
+				background-color:black;
+			}
+			#HorizontalShortLine1{
+				top:40px;
+				left:20px;
+			}
+			#HorizontalShortLine2{
+				top:40px;
+				left:51px;
+			}
+			#HorizontalShortLine3{
+				top:50px;
+				left:20px;
+			}
+			#HorizontalShortLine4{
+				top:50px;
+				left:51px;
+			}
+			.SightOcclusion{
+				position:absolute;
+				width:45px;
+				height:810px;
+				z-index:2;				
+				background-color:white;
+			}
+			#SightOcclusion2{
+				left:766px;
+			}
+			/*棋子位置：共10*9=90个棋子可移动位置*/
+			.div3{
+				position:absolute;
+				top:30px;
+				left:360px;
+				z-index:3; 
+				width:900px;
+				height:860px;
+			}
+			.Button{
+				position:absolute;
+				width:80px;
+				height:80px;
+				border-radius:50%;
+				font-size:50px;
+				font-family:Kaiti;
+				text-align:center;
+				line-height:80px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="div0" id="Border">
+			<div class="River">楚&nbsp;&nbsp;河&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;汉&nbsp;&nbsp;界</div>
+		</div>
+		<div class="div1"></div>
+		<div class="div2">
+			<div class="SightOcclusion" id="SightOcclusion1"></div>
+			<div class="SightOcclusion" id="SightOcclusion2"></div>
+		</div>
+		<div class="div3"></div>
+	</body>
+	<script>
+		const BLACK_CHESS=['車','馬','象','士','将','士','象','馬','車','炮','卒'];
+		const RED_CHESS=['車','馬','相','仕','帥','仕','相','馬','車','砲','兵'];
+		//创建棋盘网格：10条横向9条竖线，间隔90px。
+		var div1=document.getElementsByClassName("div1")[0];
+		for(var i=1;i<=10;i++){
+			var x=(i-1)*90;
+			//生成横线
+			var horizontalLine=document.createElement("div");
+			horizontalLine.setAttribute("class","HorizontalLine");
+			horizontalLine.setAttribute("id","HorizontalLine"+i);
+			horizontalLine.style.marginTop=x+"px";
+			div1.appendChild(horizontalLine);
+			//生成竖线
+			if(i<=9){
+				var verticalLine=document.createElement("div");
+				verticalLine.setAttribute("class","VerticalLine");
+				verticalLine.setAttribute("id","VerticalLine"+i);
+				verticalLine.style.marginLeft=x+"px";
+				div1.appendChild(verticalLine);
+			}
+			//生成斜线
+			if(i<=4){
+				var diagonalLine=document.createElement("div");
+				diagonalLine.setAttribute("class","DiagonalLine");
+				diagonalLine.setAttribute("id","DiagonalLine"+i);
+				div1.appendChild(diagonalLine);
+			}
+		}
+		//生成准星位置：1-4为炮位置，5-14为卒位置。
+		var div2=document.getElementsByClassName("div2")[0];
+		for(var i=1;i<=4;i++){
+			var sight=document.createElement("div");
+			sight.setAttribute("class","Sight");
+			if(i<=2)
+			sight.style.marginTop="135px";
+			else
+			sight.style.marginTop="585px";
+			if(i%2==1)
+			sight.style.marginLeft="90px";
+			else
+			sight.style.marginLeft="630px";
+			div2.appendChild(sight);
+		}
+		for(var i=5;i<=14;i++){
+			var sight=document.createElement("div");
+			sight.setAttribute("class","Sight");
+			if(i<=9){
+				sight.style.marginTop="225px";
+				sight.style.marginLeft=((i-5)*180)+"px";
+			}
+			else{
+				sight.style.marginTop="495px";
+				sight.style.marginLeft=((i-10)*180)+"px";
+			}
+			div2.appendChild(sight);
+		}
+		//生成准星线
+		var sight=document.getElementsByClassName("Sight");
+		for(var i=0;i<=13;i++){
+			for(var j=1;j<=4;j++){
+				var verticalShortLine=document.createElement("div");
+				verticalShortLine.setAttribute("class","VerticalShortLine");
+				verticalShortLine.setAttribute("id","VerticalShortLine"+j);
+				verticalShortLine.setAttribute("zIndex","1");
+				sight[i].appendChild(verticalShortLine);
+				
+				var horizontalShortLine=document.createElement("div");
+				horizontalShortLine.setAttribute("class","HorizontalShortLine");
+				horizontalShortLine.setAttribute("id","HorizontalShortLine"+j);
+				horizontalShortLine.setAttribute("zIndex","1");
+				sight[i].appendChild(horizontalShortLine);
+			}
+		}
+		//生成棋子位置：如Button_3_4为第三行第四列的棋子位置。
+		var div3=document.getElementsByClassName("div3")[0];
+		for(var i=0;i<10;i++){
+			for(var j=0;j<9;j++){
+				var buttonLocation=document.createElement("div");
+				buttonLocation.setAttribute("class","Button");
+				buttonLocation.setAttribute("id","Button_"+i+"_"+j);
+				buttonLocation.style.marginTop=90*i+"px";
+				buttonLocation.style.marginLeft=90*j+"px";
+				div3.appendChild(buttonLocation);
+			}
+		}
+		//棋子插入文字：为所有棋子位置创建文字子节点。
+		var buttonLocation=document.getElementsByClassName("Button");
+		for(var i=0;i<90;i++){
+			if(i<9){
+				buttonLocation[i].appendChild(document.createTextNode(BLACK_CHESS[i]));
+				initialization(buttonLocation[i],i);
+			}
+			else if(i==19||i==25){
+				buttonLocation[i].appendChild(document.createTextNode(BLACK_CHESS[9]));
+				initialization(buttonLocation[i],i);
+			}
+			else if(i==27||i==29||i==31||i==33||i==35){
+				buttonLocation[i].appendChild(document.createTextNode(BLACK_CHESS[10]));
+				initialization(buttonLocation[i],i);
+			}
+			else if(i==54||i==56||i==58||i==60||i==62){
+				buttonLocation[i].appendChild(document.createTextNode(RED_CHESS[10]));
+				initialization(buttonLocation[i],i);
+			}
+			else if(i==64||i==70){
+				buttonLocation[i].appendChild(document.createTextNode(RED_CHESS[9]));
+				initialization(buttonLocation[i],i);
+			}
+			else if(i>80){
+				buttonLocation[i].appendChild(document.createTextNode(RED_CHESS[i-81]));
+				initialization(buttonLocation[i],i);
+			}
+			else{
+				buttonLocation[i].appendChild(document.createTextNode(""));
+			}
+		}
+		//初始化：为所有棋子添加字体颜色、背景颜色和影子效果，并对红棋子添加pickUp事件监听器（红方先行）
+		function initialization(element,i){
+			if(i>50)
+				element.style.color="red";
+			else
+				element.style.color="black";
+				
+			element.style.backgroundColor="#FFEFD5";
+			element.style.boxShadow="0px 3px 3px #c8c8c8";
+			
+			if(i>50){
+				element.style.cursor="pointer";
+				element.addEventListener("click",pickUp,false);
+			}
+		}
+		
+		//选取棋子逻辑：当点击棋子，棋子变为被选中状态，同时移除所有棋子的事件监听器，并将被选中棋子可落子的位置添加事件监听器
+		//可落子位置：放回原位置putDownOrigin，符合象棋规则的空位置putDown。
+		
+		//将棋子位置转换为二维数组
+		var button=new Array();
+		var k=0;
+		for(var i=0;i<10;i++){
+			button[i]=new Array();
+			for(var j=0;j<9;j++){
+				button[i][j]=buttonLocation[k++];
+			}
+		}
+		//记录当前元素位置，元素id为button_i_j，id第7个和第9个为x和y。
+		var x,y;
+		//选取棋子逻辑
+		function pickUp(){
+			this.style.border="3px solid black";
+			removeAllEventListener();
+			x=+(this.id[7]);
+			y=+(this.id[9]);
+			
+			//为棋子原位置添加放回原位置的事件监听器
+			this.style.cursor="pointer";
+			this.addEventListener("click",putDownOrigin,false);
+			
+			//为符合移动规则的棋子位置添加事件监听器
+			//車逻辑：直线行走，同直线可吃子
+			if(this.innerHTML==BLACK_CHESS[0]){
+				for(var j=y+1;j<9&&this.style.color!=button[x][j].style.color;j++){
+					button[x][j].style.cursor="pointer";
+					button[x][j].addEventListener("click",putDown,false);
+				}
+				for(var j=y-1;j>=0&&this.style.color!=button[x][j].style.color;j--){
+					button[x][j].style.cursor="pointer";
+					button[x][j].addEventListener("click",putDown,false);
+				}
+				for(var i=x+1;i<10&&this.style.color!=button[i][y].style.color;i++){
+					button[i][y].style.cursor="pointer";
+					button[i][y].addEventListener("click",putDown,false);
+				}
+				for(var i=x-1;i>=0&&this.style.color!=button[i][y].style.color;i--){
+					button[i][y].style.cursor="pointer";
+					button[i][y].addEventListener("click",putDown,false);
+				}
+			}
+			//砲逻辑：直线行走，隔子可吃敌方子
+			//在直线上遇到第一个棋子前为移动逻辑，与車相同，当跨过第一个棋子后遇到的第二个敌方棋子转为吃子逻辑
+			if(this.innerHTML==BLACK_CHESS[9]||this.innerHTML==RED_CHESS[9]){
+				var firstChess=y+1;
+				for(var j=y+1;j<9&&button[x][j].style.color=="";j++){
+					button[x][j].style.cursor="pointer";
+					button[x][j].addEventListener("click",putDown,false);
+					firstChess=j+1;
+				}
+				for(var j=firstChess+1;j<9;j++){
+					if(button[x][j].style.color!=""&&this.style.color!=button[x][j].style.color){
+						button[x][j].style.cursor="pointer";
+						button[x][j].addEventListener("click",putDown,false);
+						break;
+					}
+				}
+				
+				firstChess=y-1;
+				for(var j=y-1;j>=0&&button[x][j].style.color=="";j--){
+					button[x][j].style.cursor="pointer";
+					button[x][j].addEventListener("click",putDown,false);
+					firstChess=j-1;
+				}
+				for(var j=firstChess-1;j>=0;j--){
+					if(button[x][j].style.color!=""&&this.style.color!=button[x][j].style.color){
+						button[x][j].style.cursor="pointer";
+						button[x][j].addEventListener("click",putDown,false);
+						break;
+					}
+				}
+				
+				firstChess=x+1;
+				for(var i=x+1;i<10&&button[i][y].style.color=="";i++){
+					button[i][y].style.cursor="pointer";
+					button[i][y].addEventListener("click",putDown,false);
+					firstChess=i+1;
+				}
+				for(var i=firstChess+1;i<10;i++){
+					if(button[i][y].style.color!=""&&this.style.color!=button[i][y].style.color){
+						button[i][y].style.cursor="pointer";
+						button[i][y].addEventListener("click",putDown,false);
+						break;
+					}
+				}
+				
+				firstChess=x-1;
+				for(var i=x-1;i>=0&&button[i][y].style.color=="";i--){
+					button[i][y].style.cursor="pointer";
+					button[i][y].addEventListener("click",putDown,false);
+					firstChess=i-1;
+				}
+				for(var i=firstChess-1;i>=0;i--){
+					if(button[i][y].style.color!=""&&this.style.color!=button[i][y].style.color){
+						button[i][y].style.cursor="pointer";
+						button[i][y].addEventListener("click",putDown,false);
+						break;
+					}
+				}
+			}
+			
+			//馬移动逻辑：馬走日，不能绊马腿。
+			//将可移动的八个位置(xNew,yNew)和绊马腿位置(xResist,yResist)的相对坐标通过arr数组存储，并用for循环进行遍历。象仕将卒逻辑同馬。
+			if(this.innerHTML==BLACK_CHESS[1]){
+				var arr=[1,-1,1,-1,-2,-2,2,2,-2,-2,2,2,-1,1,-1,1,0,0,0,0,-1,-1,1,1,-1,-1,1,1,0,0,0,0];
+				for(var i=0;i<8;i++){
+					var xNew=x+arr[i];
+					var yNew=y+arr[i+8];
+					var xResist=x+arr[i+16];
+					var yResist=y+arr[i+24];
+					if(xNew>=0&&xNew<10&&yNew>=0&&yNew<9&&this.style.color!=button[xNew][yNew].style.color&&button[xResist][yResist].style.backgroundColor==""){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+				}
+			}
+			
+			//象移动逻辑：象走田，不能绊象腿，象不能过河。
+			if(this.innerHTML==BLACK_CHESS[2]||this.innerHTML==RED_CHESS[2]){
+				var arr=[-1,-1,1,1,-1,1,-1,1];
+				for(var i=0;i<4;i++){
+					var xNew=x+arr[i]*2;
+					var yNew=y+arr[i+4]*2;
+					var xResist=x+arr[i];
+					var yResist=y+arr[i+4];
+					if(x<=4&&xNew>=0&&xNew<=4&&yNew>=0&&yNew<9&&this.style.color!=button[xNew][yNew].style.color&&button[xResist][yResist].style.backgroundColor==""){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+					if(x>=5&&xNew>=5&&xNew<10&&yNew>=0&&yNew<9&&this.style.color!=button[xNew][yNew].style.color&&button[xResist][yResist].style.backgroundColor==""){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+				}
+			}
+			
+			//仕移动逻辑：仕走一步斜线，不能走出皇宫
+			if(this.innerHTML==BLACK_CHESS[3]||this.innerHTML==RED_CHESS[3]){
+				var arr=[-1,-1,1,1,-1,1,-1,1];
+				for(var i=0;i<4;i++){
+					var xNew=x+arr[i];
+					var yNew=y+arr[i+4];
+					if(x<=2&&xNew>=0&&xNew<=2&&yNew>=3&&yNew<=5&&this.style.color!=button[xNew][yNew].style.color){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+					if(x>=7&&xNew>=7&&xNew<=9&&yNew>=3&&yNew<=5&&this.style.color!=button[xNew][yNew].style.color){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+				}
+			}
+			
+			//将帥移动逻辑：每次走一步直线，不能出皇宫。（送将会判负）
+			if(this.innerHTML==BLACK_CHESS[4]||this.innerHTML==RED_CHESS[4]){
+				var arr=[-1,1,0,0,0,0,-1,1];
+				for(var i=0;i<4;i++){
+					var xNew=x+arr[i];
+					var yNew=y+arr[i+4];
+					if(x<=2&&xNew>=0&&xNew<=2&&yNew>=3&&yNew<=5&&this.style.color!=button[xNew][yNew].style.color){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+					if(x>=7&&xNew>=7&&xNew<=9&&yNew>=3&&yNew<=5&&this.style.color!=button[xNew][yNew].style.color){
+						button[xNew][yNew].style.cursor="pointer";
+						button[xNew][yNew].addEventListener("click",putDown,false);
+					}
+				}
+			}
+			
+			//卒移动逻辑：向前走一步，不能回头，当过河之后可以左右移动。
+			if(this.innerHTML==BLACK_CHESS[10]||this.innerHTML==RED_CHESS[10]){
+				var arrBlack=[0,0,1,-1,1,0];
+				var arrRed=[0,0,-1,-1,1,0];
+				//黑卒
+				if(button[x][y].style.color=="black"){
+					if(x<=4&&this.style.color!=button[x+1][y].style.color){
+						button[x+1][y].style.cursor="pointer";
+						button[x+1][y].addEventListener("click",putDown,false);
+					}
+					if(x>4){
+						for(var i=0;i<3;i++){
+							var xNew=x+arrBlack[i];
+							var yNew=y+arrBlack[i+3];
+							if(xNew<10&&yNew>=0&&yNew<9&&this.style.color!=button[xNew][yNew].style.color){
+								button[xNew][yNew].style.cursor="pointer";
+								button[xNew][yNew].addEventListener("click",putDown,false);
+							}
+						}
+					}
+				}
+				
+				//红卒
+				if(button[x][y].style.color=="red"){
+					if(x>=5&&this.style.color!=button[x-1][y].style.color){
+						button[x-1][y].style.cursor="pointer";
+						button[x-1][y].addEventListener("click",putDown,false);
+					}
+					if(x<5){
+						for(var i=0;i<3;i++){
+							var xNew=x+arrRed[i];
+							var yNew=y+arrRed[i+3];
+							if(xNew>=0&&yNew>=0&&yNew<9&&this.style.color!=button[xNew][yNew].style.color){
+								button[xNew][yNew].style.cursor="pointer";
+								button[xNew][yNew].addEventListener("click",putDown,false);
+							}
+						}
+					}
+				}
+			}
+		}
+		
+		//通过number的奇偶判断该谁下棋
+		var number=0;
+		
+		//落子：放回原位置
+		function putDownOrigin(){
+			button[x][y].style.border="";
+			removeAllEventListener();
+			addAllEventListener();
+		}
+		//落子：当落子位置无棋子或为敌方棋子，则将选取的棋子放到该位置，并移除原位置的样式。
+		//button[x][y]为原位置，this指向新位置。
+		 function putDown(){
+			 if(this.innerHTML==BLACK_CHESS[4])
+			 alert("游戏结束，红方胜！");
+			 if(this.innerHTML==RED_CHESS[4])
+			 alert("游戏结束，黑方胜！");
+			 
+			 //更改样式
+			 this.style.backgroundColor=button[x][y].style.backgroundColor;
+			 this.style.color=button[x][y].style.color;
+			 this.style.boxShadow=button[x][y].style.boxShadow;
+			 this.innerHTML=button[x][y].innerHTML;
+			 
+			 button[x][y].style.border="";
+			 button[x][y].style.backgroundColor="";
+			 button[x][y].style.color="";
+			 button[x][y].style.boxShadow="";
+			 button[x][y].innerHTML="";
+			 
+			//将帥对脸判输
+			for(var i=0;i<10;i++){
+				for(var j=0;j<9;j++){
+					if(button[i][j].innerHTML==BLACK_CHESS[4]){
+						for(var k=i+1;k<10;k++){
+							if(button[k][j].style.color!=""&&button[k][j].innerHTML!=RED_CHESS[4])
+							break;
+							if(button[k][j].innerHTML==RED_CHESS[4]&&this.style.color=="black"){
+								alert("游戏结束，红方胜！");
+								break;
+							}
+							if(button[k][j].innerHTML==RED_CHESS[4]&&this.style.color=="red"){
+								alert("游戏结束，黑方胜！");
+								break;
+							}
+						}
+					}
+				}
+			}
+			
+			//移除键盘所有按钮的事件监听器，并对有棋子的位置添加带有pickUp函数的事件监听器。
+			number++;
+			removeAllEventListener();
+			addAllEventListener();
+		}
+		
+		//移除所有棋子事件监听器的函数
+		function removeAllEventListener(){
+			for(var i=0;i<10;i++){
+				for(var j=0;j<9;j++){
+					button[i][j].style.cursor="default";
+					button[i][j].removeEventListener("click",pickUp,false);
+					button[i][j].removeEventListener("click",putDownOrigin,false);
+					button[i][j].removeEventListener("click",putDown,false);
+				}
+			}
+		}
+		//为所有场上存活棋子添加pickUp事件监听器
+		function addAllEventListener(){
+			if(number%2==1){
+				for(var i=0;i<10;i++){
+					for(var j=0;j<9;j++){
+						if(button[i][j].style.color=="black"){
+							button[i][j].style.cursor="pointer";
+							button[i][j].addEventListener("click",pickUp,false);
+						}
+					}
+				}
+			}
+			else{
+				for(var i=0;i<10;i++){
+					for(var j=0;j<9;j++){
+						if(button[i][j].style.color=="red"){
+							button[i][j].style.cursor="pointer";
+							button[i][j].addEventListener("click",pickUp,false);
+						}
+					}
+				}
+			}
+		}
+	</script>
+</html>
